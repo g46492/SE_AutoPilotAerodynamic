@@ -1,0 +1,95 @@
+﻿Autopilot script for aerodynamic fixed wing aircraft
+By DFPercush 2022
+		
+If run without any arguments: toggles autopilot on/off.
+Will maintain level flight at current heading, altitude, and speed.
+		
+If run with an argument of heading, altitude, speed...
+Example:
+	90, 1500, 60
+Will fly due east, at 1500 m above sea level (or surface, depending on mode) at 60 m/s
+... or, using the keywords below, set one of those values by itself,
+leaving the others unchanged.
+
+Examples:
+	spd 75    -- set speed to 75 m/s
+	alt 2500  -- set altitude to 2500 m
+	hdg 180   -- set heading to 180 (fly south)
+	alt +100  -- Increase altitude by 100 m
+	alt=-100  -- Set altitude to -100 m.
+	             Useful for certain modded planets where sea
+				 level is very high.
+	spd -5    -- Decrease speed by 5 m/s
+
+Values will be remembered until a "stop" command is issued.
+Switching to manual nav mode will remember speed and altitude in case of target selection.
+
+Other commands:
+	stop
+		Disables script and resets all overrides.
+	response (=/+/-)(number)
+		Adjusts the general responsiveness of the controls.
+		Used to fine tune the handling. If things are too twitchy,
+		or there are oscillations, try decreasing it. If things are
+		too sluggish, try increasing it.
+	pitchresponse (=/+/-)(number)
+		Adjusts the gyro response specifically in the pitch axis.
+	rollresponse (=/+/-)(number)
+		Adjusts the gyro response specifically in the roll axis.
+	nav
+		manual navigation. Runs the display but no autopilot.
+	sea
+		Switch to sea level altitude.
+	surf
+		Switch to surface altitude.
+	altmode
+		Toggle between sea and surf mode
+	target
+		Designates a location or object to fly over and engages autopilot.
+		Requires a forward facing camera. Point the camera at
+		your target, then use a hotbar to call this argument.
+	target cancel
+		Cancels target lock but maintains autopilot.
+	target once
+		Acquire target for a single pass, target will cancel after flyover.
+		Aim at the sky to set mode without acquiring a target.
+	target loop (distance)
+		Acquire target and continue to loop back around after flying (distance) past target.
+		Aim at the sky to set mode without acquiring a target.
+	loop (distance)
+		Set the distance to fly past target before looping back.
+	target circle (left|right) (radius)
+		Enter a circle pattern around target. Target will be to your left or right as specified.
+	radius (distance)
+		Set the target circle radius without (re-)targeting anything.
+	drop
+		Drop a bomb
+		See config below and define the list of pylons and what action to take.
+	drop all
+		Begin carpet bombing drop sequence.
+	dropdelay
+		Override the default delay between bomb releases.
+	reloaded
+		Reset bomb counter.
+	route
+		Toggle waypoint mode. Requires a remote control block.
+		Uses the list of waypoints and flight mode from the remote control block.
+		Note: Altitude and speed are determined by current autopilot settings.
+		Those values can not be read from the remote control, only the coordinates.
+	route clear
+		Stops waypoint mode, resets progress to first waypoint, and continues holding current heading.
+		Does not modify the list of waypoints in the remote control block.
+	route next
+	route prev
+		Selects the next/previous waypoint.
+	test next waypoint
+	test route end
+		Triggers the block and action specified below for your testing purposes.
+		Does not affect current flight mode.
+	target land
+		Designates a point to lands at, facing the current heading.
+	land
+		Lands at the first available runway. Requires ILS localizer script.
+	land (runway)
+		Chooses a specific runway to land at. Requires ILS localizer script.
+

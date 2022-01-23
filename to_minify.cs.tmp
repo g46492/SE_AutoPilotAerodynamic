@@ -1,0 +1,149 @@
+		// START_CLIP
+
+		IMyGridTerminalSystem G = null;
+		IMyShipController activeCockpit = null;
+		MatrixD shipWorld;
+
+		PID pitchControl = new PID
+		{
+			Kp = 1.0,
+			Ki = 1.0,
+			Kd = 1.0,
+			lowPass = 1.0,
+			limMin = -45,
+			limMax = 45,
+			limMinInt = -5,
+			limMaxInt = 5,
+			dt = 1.0 / 60.0
+		};
+
+		PID rollControl = new PID
+		{
+			Kp = 1.0,
+			Ki = 1.0,
+			Kd = 1.0,
+			lowPass = 1.0,
+			limMin = -60,
+			limMax = 60,
+			limMinInt = -5,
+			limMaxInt = 5,
+			dt = 1.0 / 60.0
+		};
+
+		public Program()
+		{
+			G = GridTerminalSystem;
+		}
+
+		public void Save()
+		{
+		}
+
+		public void Main(string argument, UpdateType updateSource)
+		{
+			if (GetCockpit() == null) { return; }
+			RefreshOrientation();
+		}
+
+
+
+		void RefreshOrientation()
+		{
+			shipWorld = activeCockpit.WorldMatrix;
+			//activeCockpit.TryGetPlanetPosition()
+			//activeCockpit.TryGetPlanetElevation(MyPlanetElevation.Sealevel)
+		}
+		IMyShipController GetCockpit()
+		{
+			var bl = new List<IMyShipController>();
+			G.GetBlocksOfType(bl);
+			foreach (var b in bl)
+			{
+				if (b.IsMainCockpit) //(b.IsUnderControl)
+				{
+					activeCockpit = b;
+					return b;
+				}
+			}
+			return null;
+		}
+
+		// PID code adapted to C# from https://github.com/pms67/PID
+		class PID
+		{
+			/* Controller gains */
+			public double Kp;
+			public double Ki;
+			public double Kd;
+
+			/* Derivative low-pass filter time constant */
+			public double lowPass;
+
+			/* Output limits */
+			public double limMin;
+			public double limMax;
+
+			/* Integrator limits */
+			public double limMinInt;
+			public double limMaxInt;
+
+			/* Sample time (in seconds) */
+			public double dt;
+
+			/* Controller "memory" */
+			private double integrator;
+			private double prevError;            /* Required for integrator */
+			private double differentiator;
+			private double prevMeasurement;      /* Required for differentiator */
+
+			/* Controller output */
+			private double m_output;
+			public double Output { get { return m_output; } }
+
+			public double Update(double setpoint, double measurement)
+			{
+				double error = setpoint - measurement;
+				double proportional = Kp * error;
+				integrator = integrator + 0.5f * Ki * dt * (error + prevError);
+
+				/* Anti-wind-up via integrator clamping */
+				if (integrator > limMaxInt)
+				{
+					integrator = limMaxInt;
+				}
+				else if (integrator < limMinInt)
+				{
+					integrator = limMinInt;
+				}
+
+				// (band-limited differentiator)
+				differentiator = -(2.0f * Kd * (measurement - prevMeasurement)   /* Note: derivative on measurement, therefore minus sign in front of equation! */
+									+ (2.0f * lowPass - dt) * differentiator)
+									/ (2.0f * lowPass + dt);
+
+
+				// Compute output and apply limits
+				m_output = proportional + integrator + differentiator;
+				if (m_output > limMax)
+				{
+
+					m_output = limMax;
+
+				}
+				else if (m_output < limMin)
+				{
+
+					m_output = limMin;
+
+				}
+
+				/* Store error and measurement for later use */
+				prevError = error;
+				prevMeasurement = measurement;
+
+				/* Return controller output */
+				return m_output;
+			}
+		} // class PID
+
+		// END_CLIP
