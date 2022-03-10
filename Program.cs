@@ -4,7 +4,10 @@
 Ideas:
 	. Remote call with telemetry for other scripts to use.
 	  Probably needs IGC to actually return a value.
- 
+
+	. semi manual mode, control roll only to cancel side slip
+	
+	. use any cockpit as long as they're all facing the same way
 */
 
 using Sandbox.Game.EntityComponents;
@@ -35,6 +38,13 @@ namespace IngameScript
 
 		// === CONFIG ===
 
+		// Script will usually auto detect the cockpit,
+		// but if it's having trouble for some reason,
+		// you can manually specify the block here.
+		// Anything that drives a ship like a helm or 
+		// remote control block is ok.
+		const string ForceCockpit = "";
+
 		// Print diagnostic info in echo panel.
 		// (When you view the programmable block in the terminal.)
 		// Also sets the [debug] display variable.
@@ -43,9 +53,6 @@ namespace IngameScript
 
 		// Game constants - may be affected by other mods.
 
-		// Game's maximum speed limit, usually 100 m/s.
-		// If you are using speed mods, change this accordingly.
-		const double HardSpeedLimit = 100.0;
 		
 		// Updates per second of game world time.
 		// Not affected by sim speed slowdown.
@@ -84,6 +91,7 @@ namespace IngameScript
 
 		// How far out from the landing point to line up
 		const double LandingFinalApproachDistance = 1000;
+		const double LandingLineupAccuracy = 100;
 
 		// On final approach
 		double LandingFinalPitch = 10;
@@ -145,22 +153,31 @@ namespace IngameScript
 		// Time between bomb releases for "drop all" command.
 		double BombDropDelay = 0.5; // seconds
 
+		// Max fall rate of a bomb.
+		// This may vary by build due to aerodynamic differences.
+		const double BombTerminalVelocity = 100.0;
+
+
 
 
 		// ROUTING AND WAYPOINT NOTIFICATION
 
 		// Timer block template
-		//string On_NextWaypoint_Block = "Timer Block";
-		//string On_NextWaypoint_Action = "TriggerNow";
-		//string On_OneWayRouteComplete_Block = "Timer Block 2";
-		//string On_OneWayRouteComplete_Action = "TriggerNow";
+		string On_NextWaypoint_Block = "Timer Block 2";
+		string On_NextWaypoint_Action = "TriggerNow";
+		string On_OneWayRouteComplete_Block = "Timer Block";
+		string On_OneWayRouteComplete_Action = "TriggerNow";
 
 		// Sound block template
-		string On_NextWaypoint_Block = "Sound Block Next Waypoint";
-		string On_NextWaypoint_Action = "PlaySound";
-		string On_OneWayRouteComplete_Block = "Sound Block Route End";
-		string On_OneWayRouteComplete_Action = "PlaySound";
+		//string On_NextWaypoint_Block = "Sound Block Next Waypoint";
+		//string On_NextWaypoint_Action = "PlaySound";
+		//string On_OneWayRouteComplete_Block = "Sound Block Route End";
+		//string On_OneWayRouteComplete_Action = "PlaySound";
 
+
+		// How close to the waypoint do you have to get to consider it reached.
+		// (horizontal distance)
+		const double WaypointAccuracyDistance = 100.0;
 
 
 		// DISPLAY
@@ -222,6 +239,7 @@ List of available variables:
 [lat]      Current latitude
 [lon]      Current longitude
 [target]   Name of current target (or waypoint)
+[waypointnum] Number of current waypoint in route.
 [loopmode] Target loop back mode.
 [loopdistance]  Distance to pass target before looping back.
 [dtt]      Distance to target (or waypoint)
@@ -245,6 +263,8 @@ List of available variables:
 
 [pitchresponse]  Your manual adjustment to pitch response
 [rollresponse]   Your manual adjustment to roll response
+
+[address]  Comms address of this ship.
 
 [debug]    Debugging messages.
            Debug mode must be turned on.
@@ -504,6 +524,7 @@ List of available variables:
 		double altitude, heading, pitch, roll, sideslip;
 		public static Program prg;
 
+
 		//static readonly Vector3D posY = new Vector3D(0, 1, 0);
 		static readonly Vector3D negY = new Vector3D(0, -1, 0);
 		//static readonly Vector3D posX = new Vector3D(1, 0, 0);
@@ -692,6 +713,11 @@ List of available variables:
 			landAtGridName = "";
 			useAnyRunway = false;
 			target = null;
+
+			nextWaypointIndex = 0;
+			routeDirection = 1;
+			waypointMode = false;
+
 			FindThrust();
 			foreach (var t in forwardThrusters)
 			{
@@ -952,6 +978,7 @@ List of available variables:
 				}
 				else if (cmd.StartsWith("land"))
 				{
+					target = null;
 					rest = cmd.Substring(4).Trim();
 					if (rest.Length > 0)
 					{
@@ -1265,7 +1292,7 @@ List of available variables:
 					dbg($"{(beginFinalApproachPoint - shipWorldPos).Length():0} m to final < {LandingLineupToRunwaySpeed}");
 					dbg($"alt {altsea:0} -> {ilsApproachToLandingLine.seaLevelAltitude:0}");
 
-					if ((beginFinalApproachPoint - shipWorldPos).Length() < 100)
+					if ((beginFinalApproachPoint - shipWorldPos).Length() < LandingLineupAccuracy)
 					{
 						thrustController.setpoint = LandingLineupToRunwaySpeed - 5;
 						ilsApproachToLandingLine.goTowards(beginFinalApproachPoint, landingTarget, planetWorldPos);
@@ -1421,10 +1448,12 @@ List of available variables:
 					status = ($"AUTO {waypoint.Name}");
 					navmode = "AUTO";
 					wayco.init(waypoint.Coords, negY, planetWorldPos);
-					if (Math.Abs(wayco.latitude - lat) < 0.1
-						&& Math.Abs(wayco.longitude - lon) < 0.1)
-						// 0.1 degrees == 105 m with a planet radius of 60km
+					//if (Math.Abs(wayco.latitude - lat) < 0.1
+					//	&& Math.Abs(wayco.longitude - lon) < 0.1)
+					//	// 0.1 degrees == 105 m with a planet radius of 60km
+					if (horiz(navMain.position, waypoint.Coords).Length() < WaypointAccuracyDistance)
 					{
+						//Popup("Waypoint reached"); // yep
 						NextWaypoint();
 					}
 					if (waypointMode) // Might have been canceled if one way trip
@@ -1495,6 +1524,7 @@ List of available variables:
 			//}
 			RunDisplays();
 
+			AnswerCommRequests();
 		} // RunFrame()
 
 		//IMyTextSurface getDisplay()
@@ -1560,11 +1590,11 @@ List of available variables:
 			//if (rc.FlightMode != FlightMode.Patrol) { routeDirection = 1; }
 
 			rc.GetWaypointInfo(waypoints);
-			if (waypoints.Count == 1)
-			{
-				nextWaypointIndex = 0;
-				return;
-			}
+			//if (waypoints.Count == 1)
+			//{
+			//	nextWaypointIndex = 0;
+			//	return;
+			//}
 			nextWaypointIndex += routeDirection * (previous ? -1 : 1);
 			if (nextWaypointIndex >= waypoints.Count)
 			{
@@ -1718,27 +1748,62 @@ List of available variables:
 		}
 
 		static double planetSeaLevelRadius = 0;
+		void UseCockpit(IMyShipController b)
+		{
+			activeCockpit = b;
+			double elevation;
+			Vector3D pp;
+			bool posgood = b.TryGetPlanetPosition(out pp);
+			bool elvgood = b.TryGetPlanetElevation(MyPlanetElevation.Sealevel, out elevation);
+			if (elvgood && posgood)
+			{
+				planetSeaLevelRadius = (b.WorldMatrix.Translation - pp).Length() - elevation;
+				dbg($"planet sea radius {planetSeaLevelRadius:0}");
+			}
+		}
 		IMyShipController GetCockpit()
 		{
+			if (ForceCockpit.Length > 0)
+			{
+				var fcBlock = G.GetBlockWithName(ForceCockpit) as IMyShipController;
+				if (fcBlock != null)
+				{
+					activeCockpit = fcBlock;
+					return fcBlock;
+				}
+			}
 			var bl = new List<IMyShipController>();
 			G.GetBlocksOfType(bl);
+			var oris = new List<MyBlockOrientation>();
 			foreach (var b in bl)
 			{
+				oris.Add(b.Orientation);
 				if (b.IsUnderControl)
 				{
-					activeCockpit = b;
-					double elevation;
-					Vector3D pp;
-					bool posgood = b.TryGetPlanetPosition(out pp);
-					bool elvgood = b.TryGetPlanetElevation(MyPlanetElevation.Sealevel, out elevation);
-					if (elvgood && posgood)
-					{
-						planetSeaLevelRadius = (b.WorldMatrix.Translation - pp).Length() - elevation;
-						dbg($"planet sea radius {planetSeaLevelRadius:0}");
-					}
+					UseCockpit(b);
 					return b;
 					//b.CubeGrid.GridSizeEnum == MyCubeSize.Large
 					//b.CubeGrid.GridSizeEnum == MyCubeSize.Small
+				}
+			}
+			// Haven't found one under control yet?
+			// See if they all point the same way and just use any of them.
+			if (oris.Count > 0)
+			{
+				var checkOri = oris[0];
+				bool oriGood = true;
+				foreach (var ori in oris)
+				{
+					if (ori != checkOri)
+					{
+						oriGood = false;
+						break;
+					}
+				}
+				if (oriGood && bl.Count > 0)
+				{
+					UseCockpit(bl[0]);
+					return bl[0];
 				}
 			}
 			return activeCockpit;
@@ -2369,54 +2434,63 @@ List of available variables:
 			}
 			else
 			{
-				//!display substitution
-				s = sr(s, "[status]", status);
-				s = sr(s, "[mode]", navmode);
-				s = sr(s, "[loopmode]", () => loopmode());
-				s = sr(s, "[loopdistance]", () => loopdistance());
-				s = sr(s, "[altmode]", () => AltitudeMode.ToString());
-				s = sr(s, "[alt]", () => $"{altitude:0}");
-				s = sr(s, "[altgoal]", () => $"{altitudeController.setpoint:0}");
-				s = sr(s, "[hdg]", () => $"{heading:0.0}");
-				s = sr(s, "[hdggoal]", () => $"{setHeading:0.0}");
-				s = sr(s, "[spd]", () => $"{activeCockpit.GetShipSpeed():0}");
-				s = sr(s, "[spdgoal]", () => $"{thrustController.setpoint:0}");
-				s = sr(s, "[gps]", llstr);
-				s = sr(s, "[lat]", () => $"{lat:0.00}");
-				s = sr(s, "[lon]", () => $"{lon:0.00}");
-				//s = sr(ref s, "[dtt]", () => target.HasValue ? (target.Value.HitPosition.Value - shipWorldPos).Length().ToString() : "--");
-				s = sr(s, "[dtt]", () => str(dtt(), "0", "--"));
-				s = sr(s, "[hdtt]", () => str(hdtt(), "0", "--"));
-				//s = sr(s, "[dtw]", () => str(dtw(), "0", "--"));
-				//s = sr(s, "[hdtw]", () => str(hdtw(), "0", "--"));
-				s = sr(s, "[target]", () => target?.Name ?? GetWaypoint()?.Name ?? "--");
-				s = sr(s, "[cpu]", () => $"{cpu}");
-				s = sr(s, "[hot]", () => $"{hot():0}");
-				//s = sr(s, "[waypoint]", () => GetWaypoint()?.Name ?? "--");
-				s = sr(s, "[ttt]", () => tttstr());
-				s = sr(s, "[bombtime]", () => bombtimestr());
-				s = sr(s, "[roll]", () => $"{roll:0.0}");
-				s = sr(s, "[rollgoal]", () => $"{rollController.setpoint:0.0}");
-				s = sr(s, "[pitch]", () => $"{pitch:0.0}");
-				s = sr(s, "[pitchgoal]", () => $"{pitchController.setpoint:0.0}");
-				s = sr(s, "[sideslip]", () => $"{sideslip:0.0}");
-				s = sr(s, "[thrust]", () => $"{thrustController.Output * 100:0}");
-				s = sr(s, "[debug]", () => $"{DebugText}");
-				s = sr(s, "[radius]", () => $"{circleRadius:0}");
-				s = sr(s, "[bombcount]", () => $"{bombcount()}");
-				s = sr(s, "[localizer]", () => currentLocalizerName);
-				s = sr(s, "[pitchresponse]", () => $"{PitchResponse:0.00}");
-				s = sr(s, "[rollresponse]", () => $"{RollResponse:0.00}");
-				s = sr(s, "[autoresponse]", () => $"{AutoResponse:0.00}");
-				s = sr(s, "[aoa]", () => $"{aoa(activeCockpit.GetShipVelocities().LinearVelocity, shipWorld):0.0}");
-				//s = sr(s, "[]", () => $"{}");
-				
-				// Template
-				//s = sr(s, "[]", () => $"{}");
+				s = subst(s);
 				dbg(s);
 				surf.WriteText(s);
 			}
 
+		}
+
+		string subst(string s)
+		{
+			//!display substitution
+			s = sr(s, "[status]", status);
+			s = sr(s, "[mode]", navmode);
+			s = sr(s, "[loopmode]", () => loopmode());
+			s = sr(s, "[loopdistance]", () => loopdistance());
+			s = sr(s, "[altmode]", () => AltitudeMode.ToString());
+			s = sr(s, "[alt]", () => $"{altitude:0}");
+			s = sr(s, "[altgoal]", () => $"{altitudeController.setpoint:0}");
+			s = sr(s, "[hdg]", () => $"{heading:0.0}");
+			s = sr(s, "[hdggoal]", () => $"{setHeading:0.0}");
+			s = sr(s, "[spd]", () => $"{activeCockpit.GetShipSpeed():0}");
+			s = sr(s, "[spdgoal]", () => $"{thrustController.setpoint:0}");
+			s = sr(s, "[gps]", llstr);
+			s = sr(s, "[lat]", () => $"{lat:0.00}");
+			s = sr(s, "[lon]", () => $"{lon:0.00}");
+			//s = sr(ref s, "[dtt]", () => target.HasValue ? (target.Value.HitPosition.Value - shipWorldPos).Length().ToString() : "--");
+			s = sr(s, "[dtt]", () => str(dtt(), "0", "--"));
+			s = sr(s, "[hdtt]", () => str(hdtt(), "0", "--"));
+			//s = sr(s, "[dtw]", () => str(dtw(), "0", "--"));
+			//s = sr(s, "[hdtw]", () => str(hdtw(), "0", "--"));
+			s = sr(s, "[target]", () => target?.Name ?? GetWaypoint()?.Name ?? "--");
+			s = sr(s, "[cpu]", () => $"{cpu}");
+			s = sr(s, "[hot]", () => $"{hot():0}");
+			//s = sr(s, "[waypoint]", () => GetWaypoint()?.Name ?? "--");
+			s = sr(s, "[ttt]", () => tttstr());
+			s = sr(s, "[bombtime]", () => bombtimestr());
+			s = sr(s, "[roll]", () => $"{roll:0.0}");
+			s = sr(s, "[rollgoal]", () => $"{rollController.setpoint:0.0}");
+			s = sr(s, "[pitch]", () => $"{pitch:0.0}");
+			s = sr(s, "[pitchgoal]", () => $"{pitchController.setpoint:0.0}");
+			s = sr(s, "[sideslip]", () => $"{sideslip:0.0}");
+			s = sr(s, "[thrust]", () => $"{thrustController.Output * 100:0}");
+			s = sr(s, "[debug]", () => $"{DebugText}");
+			s = sr(s, "[radius]", () => $"{circleRadius:0}");
+			s = sr(s, "[bombcount]", () => $"{bombcount()}");
+			s = sr(s, "[localizer]", () => currentLocalizerName);
+			s = sr(s, "[pitchresponse]", () => $"{PitchResponse:0.00}");
+			s = sr(s, "[rollresponse]", () => $"{RollResponse:0.00}");
+			s = sr(s, "[autoresponse]", () => $"{AutoResponse:0.00}");
+			s = sr(s, "[aoa]", () => $"{aoa(activeCockpit.GetShipVelocities().LinearVelocity, shipWorld):0.0}");
+			s = sr(s, "[waypointnum]", () => $"{nextWaypointIndex}");
+			s = sr(s, "[address]", () => $"{IGC.Me}");
+			//s = sr(s, "[]", () => $"{}");
+
+			// Template
+			//s = sr(s, "[]", () => $"{}");
+
+			return s;
 		}
 
 		public delegate T DeferredEvaluator<T>();
@@ -2530,10 +2604,10 @@ List of available variables:
 		double falltime(double height)
 		{
 			var g = activeCockpit.GetNaturalGravity().Length();
-			var tterm = HardSpeedLimit / g;
+			var tterm = BombTerminalVelocity / g;
 			var yterm = .5 * g * tterm * tterm;
 			if (height < yterm) { return Math.Sqrt(height / (.5 * g)); }
-			else { return (height - yterm) / HardSpeedLimit; }
+			else { return (height - yterm) / BombTerminalVelocity; }
 		}
 
 		string bombtimestr()
@@ -2672,8 +2746,82 @@ List of available variables:
 			return AngleBetweenDeg(shipMat.Forward, velInPitchPlane);
 		}
 
+		void AnswerCommRequests()
+		{
+			// TODO: move register to constructor or main/enabled
+			//IGC.RegisterBroadcastListener("")
+			while (IGC.UnicastListener.HasPendingMessage)
+			{
+				var msg = IGC.UnicastListener.AcceptMessage();
+				switch (msg.Tag)
+				{
+					case "telem":
+						var m = msg.As<CommRequest>();
+						m.data = subst(m.data);
+						IGC.SendUnicastMessage(msg.Source, "telem_response", m);
+						break;
+					case "cmd":
+						Main(msg.As<string>(), UpdateType.IGC);
+						break;
+					default:
+						break;
+				}
+			}
+		}
 
+		#region mdk preserve
+		public struct CommRequest
+		{
+			public int messageId;
+			public string data;
+		}
+		static Random rand = new Random();
 
+		/*
+		Telemetry requests work the same as display customization.
+		Format your request with the data
+		you are interested in, like [spd] [alt] etc...
+		and provide a callback to handle the response.
+		For example, let's say we have a ship running a one way route
+		to some location, and we want it to land when we get there.
+
+		GetShipTelemetry(12345, "[waypointnum]",
+			(response) => 
+			{
+				if (response == "0") CommandShip(12345, "land");
+			});
+		*/
+		public delegate void ReceiveTelemetryResponse(string data);
+
+		public void GetShipTelemetry(long shipAddress, string request, ReceiveTelemetryResponse callback)
+		{
+			var req = new CommRequest { messageId = rand.Next(), data = request };
+			shipTelemetryCallbacks[req.messageId] = callback;
+			IGC.SendUnicastMessage(shipAddress, "telem", req);
+		}
+		public void Listen()
+		{
+			while (IGC.UnicastListener.HasPendingMessage)
+			{
+				var msg = IGC.UnicastListener.AcceptMessage();
+				if (msg.Tag == "telem_response")
+				{
+					CommRequest response = msg.As<CommRequest>();
+					if (shipTelemetryCallbacks.ContainsKey(response.messageId))
+					{
+						shipTelemetryCallbacks[response.messageId](response.data);
+						shipTelemetryCallbacks.Remove(response.messageId);
+					}
+				}
+			}
+		}
+		public void CommandShip(long shipAddress, string command)
+		{
+			IGC.SendUnicastMessage(shipAddress, "cmd", command);
+		}
+		#endregion
+
+		Dictionary<long, ReceiveTelemetryResponse> shipTelemetryCallbacks = new Dictionary<long, ReceiveTelemetryResponse>();
 
 
 		void dfp_test()
