@@ -87,14 +87,14 @@ namespace IngameScript
 		// === LANDING ===
 
 		// When lining up with the runway
-		const double LandingLineupToRunwaySpeed = 40;
+		const double LandingLineupToRunwaySpeed = 55;
 
 		// How far out from the landing point to line up
 		const double LandingFinalApproachDistance = 1000;
 		const double LandingLineupAccuracy = 100;
 
 		// On final approach
-		double LandingFinalPitch = 10;
+		double LandingFinalPitch = 12.5;
 
 		double LandingGlideSlope = 15; // degrees
 
@@ -102,7 +102,7 @@ namespace IngameScript
 		const double StallSpeed = 15; // m/s
 
 		// Max speed on final landing approach.
-		const double MaxFinalSpeed = 35;
+		const double MaxFinalSpeed = MaxSpeed;
 
 		// It tends to come in a little low on the landing.
 		// If your plane is big, or it's not hitting the target just right,
