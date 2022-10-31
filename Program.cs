@@ -1,4 +1,11 @@
-﻿
+/* all hail to DFPercush for this amazing script
+
+only incorporates one minor change: I can now run the programmable block with a copied GPS
+the GPS is added to the rc and route mode is started
+
+*/
+
+
 /*
 
 Ideas:
@@ -33,7 +40,7 @@ namespace IngameScript
 {
 	partial class Program : MyGridProgram
 	{
-		// START_CLIP
+				// START_CLIP
 		#region mdk preserve
 
 		// === CONFIG ===
@@ -53,19 +60,19 @@ namespace IngameScript
 
 		// Game constants - may be affected by other mods.
 
-		
+
 		// Updates per second of game world time.
 		// Not affected by sim speed slowdown.
 		// Basically always 60.0
 		const double UpdatesPerSecond = 60.0;
-
+		//const double SeaLevelAdjustment = 0.0;
 
 
 		// === AUTOPILOT LIMITS ===
 
-		const double MaxSpeed = 95.0; // m/s
+		const double MaxSpeed = 195.0; // m/s
 		const double MaxPitch = 30.0; // degrees
-		const double MaxRoll = 45.0; // degrees
+		const double MaxRoll = 35.0; // degrees
 		const double MaxGyroSpeed = 60.0; // rpm
 
 
@@ -193,102 +200,88 @@ namespace IngameScript
 			//"LCD Panel"
 		};
 
-/*********************************
-In the Custom Data of each display, you can configure what you want to show.
-The script will scan the text for certain variables in square brackets []
-and substitute the corresponding values.
-For blocks with more than one panel, like cockpits or buttons,
-put a line before your text that goes like this:
-panel 0
+		string GPSKeyword = "GPS";
 
-Here is an example setup for a fighter cockpit.
-Try pasting this into the cockpit's custom data:
+		/*********************************
+		In the Custom Data of each display, you can configure what you want to show.
+		The script will scan the text for certain variables in square brackets []
+		and substitute the corresponding values.
+		For blocks with more than one panel, like cockpits or buttons,
+		put a line before your text that goes like this:
+		panel 0
+		Here is an example setup for a fighter cockpit.
+		Try pasting this into the cockpit's custom data:
+		---------------------------------------------------
+		panel 1
+		[mode]
+		[ttt] [target]
+		Bomb [bombtime]
+		[loopmode] [loopdistance]
+		panel 2
+		H [hdg] / [hdggoal]
+		A [alt] / [altgoal]
+		[altmode]
+		panel 3
+		[spd] / [spdgoal] m/s  [thrust]% thrust
+		P [pitch] / [pitchgoal]
+		R [roll] / [rollgoal]
+		---------------------------------------------------
+		List of available variables:
 
----------------------------------------------------
-panel 1
-[mode]
-[ttt] [target]
-Bomb [bombtime]
-[loopmode] [loopdistance]
-
-panel 2
-H [hdg] / [hdggoal]
-A [alt] / [altgoal]
-[altmode]
-
-panel 3
-[spd] / [spdgoal] m/s  [thrust]% thrust
-P [pitch] / [pitchgoal]
-R [roll] / [rollgoal]
----------------------------------------------------
-
-
-List of available variables:
-		
-[status]   Mode, target, and waypoint info. Length can vary greatly.
-[mode]     Just the mode, AUTO, MANUAL, TARGET, LAND, etc
-[altmode]  Altitude mode. "Sealevel" or "Surface". 
-[alt]      Current altitude
-[altgoal]  Altitude ship is trying to achieve
-[hdg]      Current heading
-[hdggoal]  Heading ship is trying to achieve
-[spd]      Current speed
-[spdgoal]  Speed the ship is trying to achieve
-[gps]      Current gps coordinates in lat/lon
-		   Not to be confused with Space Engineers' cartesian coordinates
-[lat]      Current latitude
-[lon]      Current longitude
-[target]   Name of current target (or waypoint)
-[waypointnum] Number of current waypoint in route.
-[loopmode] Target loop back mode.
-[loopdistance]  Distance to pass target before looping back.
-[dtt]      Distance to target (or waypoint)
-[hdtt]     Horizontal distance to target (or waypoint)
-[cpu]      Percent of allowed cpu usage.
-[hot]      Height above target
-[ttt]      Time to target
-[bombtime] count down to bombs away
-           This might not be 100% accurate, but it gets you in the ballpark.
-           Test it out on some dummy targets to get a feel for it.
-[radius]   Radius of circle pattern used for target circle mode.
-[roll]     Current bank angle
-[rollgoal] Desired bank angle
-[pitch]    Current pitch angle
-[pitchgoal] Desired pitch angle
-[sideslip] Angle between front of ship and velocity in the horizontal plane.
-[aoa]      Angle of attack
-[thrust]   Current percent thrust override.
-[bombcount] Remaining bombs. (use the "reloaded" command to reset)
-[localizer] Name of most recent runway localizer.
-
-[pitchresponse]  Your manual adjustment to pitch response
-[rollresponse]   Your manual adjustment to roll response
-
-[address]  Comms address of this ship.
-
-[debug]    Debugging messages.
-           Debug mode must be turned on.
-
-
-
-
-		// === END MAIN CONFIG ===
-
-		// PID TUNING (Advanced)
-
-		// PID constants are now determined dynamically based on the
-		// "...Response" variable above. Any changes to specific PID constants,
-		// should that be necessary, should be made in
-		// ReconfigurePIDs(), not in their declarations.
-
-		***********************************/
+		[status]   Mode, target, and waypoint info. Length can vary greatly.
+		[mode]     Just the mode, AUTO, MANUAL, TARGET, LAND, etc
+		[altmode]  Altitude mode. "Sealevel" or "Surface". 
+		[alt]      Current altitude
+		[altgoal]  Altitude ship is trying to achieve
+		[hdg]      Current heading
+		[hdggoal]  Heading ship is trying to achieve
+		[spd]      Current speed
+		[spdgoal]  Speed the ship is trying to achieve
+		[gps]      Current gps coordinates in lat/lon
+				   Not to be confused with Space Engineers' cartesian coordinates
+		[lat]      Current latitude
+		[lon]      Current longitude
+		[target]   Name of current target (or waypoint)
+		[waypointnum] Number of current waypoint in route.
+		[loopmode] Target loop back mode.
+		[loopdistance]  Distance to pass target before looping back.
+		[dtt]      Distance to target (or waypoint)
+		[hdtt]     Horizontal distance to target (or waypoint)
+		[cpu]      Percent of allowed cpu usage.
+		[hot]      Height above target
+		[ttt]      Time to target
+		[bombtime] count down to bombs away
+				   This might not be 100% accurate, but it gets you in the ballpark.
+				   Test it out on some dummy targets to get a feel for it.
+		[radius]   Radius of circle pattern used for target circle mode.
+		[roll]     Current bank angle
+		[rollgoal] Desired bank angle
+		[pitch]    Current pitch angle
+		[pitchgoal] Desired pitch angle
+		[sideslip] Angle between front of ship and velocity in the horizontal plane.
+		[aoa]      Angle of attack
+		[thrust]   Current percent thrust override.
+		[bombcount] Remaining bombs. (use the "reloaded" command to reset)
+		[localizer] Name of most recent runway localizer.
+		[pitchresponse]  Your manual adjustment to pitch response
+		[rollresponse]   Your manual adjustment to roll response
+		[address]  Comms address of this ship.
+		[debug]    Debugging messages.
+				   Debug mode must be turned on.
+				// === END MAIN CONFIG ===
+				// PID TUNING (Advanced)
+				// PID constants are now determined dynamically based on the
+				// "...Response" variable above. Any changes to specific PID constants,
+				// should that be necessary, should be made in
+				// ReconfigurePIDs(), not in their declarations.
+				***********************************/
 
 		void ReconfigurePIDs()
 		{
 			// .Kp is proportional response
 			// .Ki is integral response
 			// .Kd is differential response, typically not used and set to 0
-			
+
 			// Thrust probably doesn't need dynamic adjustment
 			// measures speed, controls thrust override.
 			// percent thrust / (m/s)
@@ -478,7 +471,7 @@ List of available variables:
 			limMaxInt = 10.0,
 			dt = 1.0 / UpdatesPerSecond
 		};
-		
+
 		//PID ilsPitchController = new PID
 		//{
 		//	Kp = 0.1,
@@ -549,7 +542,7 @@ List of available variables:
 		bool ilsFinal = false;
 		Vector3D landingTarget = new Vector3D();
 		Vector3D beginFinalApproachPoint = new Vector3D();
-		
+
 
 		string status = "";
 		string navmode = "";
@@ -723,7 +716,7 @@ List of available variables:
 			{
 				try { t.ThrustOverride = 0; t.ThrustOverridePercentage = 0; } catch { }
 			}
-			
+
 			FindGyros(GetCockpit());
 			foreach (var g in gyros)
 			{
@@ -733,7 +726,8 @@ List of available variables:
 					g.Pitch = 0;
 					g.Yaw = 0;
 					g.GyroOverride = false;
-				} catch { }
+				}
+				catch { }
 			}
 
 			//if (enableDisplay)
@@ -878,7 +872,7 @@ List of available variables:
 					return true;
 				}
 				else if (cmd.StartsWith("loop"))
- 				{
+				{
 					rest = cmd.Substring(4);
 					TargetLoopBackDistance = double.Parse(rest);
 					Popup($"LOOP {TargetLoopBackDistance:0}", 1);
@@ -1033,6 +1027,27 @@ List of available variables:
 					autopilotOn = true;
 					//return true;
 				}
+				else if (cmd.StartsWith(GPSKeyword))
+				{
+					// Break up the comand to extract coordinates
+					string target = cmd.Split(':')[1];
+					double gps1 = Convert.ToDouble(cmd.Split(':')[2]);
+					double gps2 = Convert.ToDouble(cmd.Split(':')[3]);
+					double gps3 = Convert.ToDouble(cmd.Split(':')[4]);
+
+					// Clear the remote control and add new coordinates as target
+					rc.ClearWaypoints();
+					rc.AddWaypoint(new Vector3D(gps1, gps2, gps3), target);
+
+					// Show target on remote control
+					Echo(target);
+
+					// Start autopilot and route mode
+					waypointMode = !waypointMode;
+					autopilotOn = true;
+					ResumeRoute();
+					return true;
+				}
 				else
 				{
 					return false;
@@ -1135,7 +1150,7 @@ List of available variables:
 				Vector3D runwayStart = zerovec;
 				Vector3D runwayEnd = zerovec;
 				string gridName = "";
-				foreach(var rawline in (ilsMsg.Data as string).Split(newlineSplitSeparator))
+				foreach (var rawline in (ilsMsg.Data as string).Split(newlineSplitSeparator))
 				{
 					//dbg(rawline);
 					var line = rawline.Trim().ToLower();
@@ -1347,7 +1362,7 @@ List of available variables:
 				//sideSlipController.Update(sideslip, true);
 				sideSlipController.Update(sideslip);
 
-				
+
 
 				//rollController.setpoint = Clamp(headingController.Output, -MaxRoll, MaxRoll);
 				rollController.setpoint = sideSlipController.Output;
@@ -1376,7 +1391,7 @@ List of available variables:
 
 				var rollRad = roll * Math.PI / 180.0;
 				var pitchRad = pitch * Math.PI / 180.0;
-				var gpitch =(pitchController.Output * Math.Cos(rollRad)) + (headingController.Output * (Math.Sin(rollRad)));
+				var gpitch = (pitchController.Output * Math.Cos(rollRad)) + (headingController.Output * (Math.Sin(rollRad)));
 				var gyaw = (pitchController.Output * -Math.Sin(rollRad)) + (headingController.Output * Math.Cos(rollRad));
 
 				foreach (var gt in gyt)
@@ -1422,7 +1437,7 @@ List of available variables:
 					{
 
 						//navmode = "TARGET";
-						
+
 						if (!pastTarget && shipWorld.Forward.Dot(targetVec) < 0)
 						{
 							if (enableLoopBackToTarget) { pastTarget = true; }
@@ -1434,7 +1449,7 @@ List of available variables:
 						}
 						else
 						{
-							
+
 							setHeading = angmod(targetNav.heading);
 							autopilotOn = true;
 						}
@@ -1678,26 +1693,21 @@ List of available variables:
 			//if (shipPlanetPos.Y < 0 && shipPlanetPos.X < 0) { lon = -lon; }
 			//if (!activeCockpit.TryGetPlanetElevation(MyPlanetElevation.Sealevel, out elevation)) { throw new Exception("Not on a planet"); }
 			if (!activeCockpit.TryGetPlanetElevation(AltitudeMode, out altitude)) { throw new Exception("Not on a planet"); }
-
 			//var vels = activeCockpit.GetShipVelocities();
 			var vel = activeCockpit.GetShipVelocities().LinearVelocity;
 			//var facing = shipWorld.Forward;
-
 			//bool faceVel = true;
 			bool faceVel = false;
 			if (faceVel) { facing = vel; }
-
 			//Echo($"Facing {facing}");
 			
 			var east = negY.Cross(shipPlanetPos);
 			east.Normalize();
-
 			var planetUp = shipPlanetPos;
 			planetUp.Normalize();
 			var verticalFactor = planetUp.Dot(facing); // / shipPlanetPos.Length();
 			var vertComponent = planetUp * verticalFactor;
 			var horizontal = facing - vertComponent;
-
 			//Disp($"mags {negY.Length()}, {east.Length()}, {facing.Length()}");
 			//var aboveOrBelowEastWestPlane = negY.Dot(east.Cross(facing));
 			var aboveOrBelowEastWestPlane = planetUp.Dot(east.Cross(facing));
@@ -1714,10 +1724,8 @@ List of available variables:
 				//Disp("below");
 				hdg = 90 + AngleBetweenDeg(horizontal, east);
 			}
-
 			while (hdg < 0) { hdg += 360.0; }
 			while (hdg >= 360.0) { hdg -= 360.0; }
-
 			pitch = Math.Asin(verticalFactor) * 180.0 / Math.PI;
 			//roll = Math.Asin(planetUp.Dot(shipWorld.Right)) * 180 / Math.PI;
 			*************************************************************************/
@@ -1726,7 +1734,7 @@ List of available variables:
 			pitch = navMain.pitch;
 			lat = navMain.latitude;
 			lon = navMain.longitude;
-			
+
 			//planetUp = shipWorldPos; planetUp.Normalize();
 			planetUp = shipPlanetPos; planetUp.Normalize();
 			planetDown = -planetUp;
@@ -1757,8 +1765,9 @@ List of available variables:
 			bool elvgood = b.TryGetPlanetElevation(MyPlanetElevation.Sealevel, out elevation);
 			if (elvgood && posgood)
 			{
+				//elevation = elevation - SeaLevelAdjustment;
 				planetSeaLevelRadius = (b.WorldMatrix.Translation - pp).Length() - elevation;
-				dbg($"planet sea radius {planetSeaLevelRadius:0}");
+				Echo($"planet sea radius {planetSeaLevelRadius:0}; elevation: {elevation:0}");
 			}
 		}
 		IMyShipController GetCockpit()
@@ -2158,7 +2167,7 @@ List of available variables:
 				else { g.GyroOverride = false; }
 				gyt.Add(new GyroTranslator(g, cockpit));
 			}
-			
+
 			//double torqueToMassRatio = (double)gyros.Count / (double)activeCockpit.CalculateShipMass().TotalMass;
 			//if (activeCockpit.CubeGrid.GridSizeEnum == MyCubeSize.Large) { torqueToMassRatio *= 5.0; }
 			////autoResponseFactor = torqueToMassRatio / (1.0 / 5000.0);
@@ -2302,7 +2311,7 @@ List of available variables:
 				Popup("NO REMOTE");
 				return;
 			}
-			
+
 			waypoints.Clear();
 			rc.GetWaypointInfo(waypoints);
 			if (waypoints.Count == 0)
@@ -2325,7 +2334,7 @@ List of available variables:
 			if (!displayIsInitialized)
 			{
 				//foreach (var sb in panelTextLines) { sb = new StringBuilder(); }
-				for (int i =0; i < panelTextLines.Length; i++)
+				for (int i = 0; i < panelTextLines.Length; i++)
 				{
 					panelTextLines[i] = new StringBuilder();
 				}
@@ -2784,7 +2793,6 @@ List of available variables:
 		and provide a callback to handle the response.
 		For example, let's say we have a ship running a one way route
 		to some location, and we want it to land when we get there.
-
 		GetShipTelemetry(12345, "[waypointnum]",
 			(response) => 
 			{
@@ -2834,7 +2842,7 @@ List of available variables:
 			//Echo($"shipPlanetPos {shipPlanetPos}");
 			//Echo($"alt {navMain.seaLevelAltitude}");
 			//Echo($"pitch {navMain.pitch}");
-			
+
 			foreach (var g in gyt)
 			{
 				g.g.GyroOverride = false;
