@@ -1,17 +1,7 @@
-/* all hail to DFPercush for this amazing script
-
-only incorporates one minor change: I can now run the programmable block with a copied GPS
-the GPS is added to the rc and route mode is started
-
-*/
-
-
 /*
-
 Ideas:
 	. Remote call with telemetry for other scripts to use.
 	  Probably needs IGC to actually return a value.
-
 	. semi manual mode, control roll only to cancel side slip
 	
 	. use any cockpit as long as they're all facing the same way
@@ -40,7 +30,7 @@ namespace IngameScript
 {
 	partial class Program : MyGridProgram
 	{
-				// START_CLIP
+		// START_CLIP
 		#region mdk preserve
 
 		// === CONFIG ===
@@ -1767,7 +1757,6 @@ namespace IngameScript
 			{
 				//elevation = elevation - SeaLevelAdjustment;
 				planetSeaLevelRadius = (b.WorldMatrix.Translation - pp).Length() - elevation;
-				Echo($"planet sea radius {planetSeaLevelRadius:0}; elevation: {elevation:0}");
 			}
 		}
 		IMyShipController GetCockpit()
